@@ -12,11 +12,13 @@ class Pose:
                  'r_hip', 'r_knee', 'r_ank', 'l_hip', 'l_knee', 'l_ank',
                  'r_eye', 'l_eye',
                  'r_ear', 'l_ear']
+
     sigmas = np.array([.26, .79, .79, .72, .62, .79, .72, .62, 1.07, .87, .89, 1.07, .87, .89, .25, .25, .35, .35],
                       dtype=np.float32) / 10.0
     vars = (sigmas * 2) ** 2
     last_id = -1
-    color = [0, 224, 255]
+    color = [0, 255, 0]
+    hand_color = [0, 0, 255]
 
     def __init__(self, keypoints, confidence):
         super().__init__()
@@ -47,19 +49,39 @@ class Pose:
     def draw(self, img):
         assert self.keypoints.shape == (Pose.num_kpts, 2)
 
+        head_keypoints = self.keypoints.copy()
+        head_keypoints[2:14, :] = -1
+        head_bbox = self.get_bbox(head_keypoints)
+        print(head_bbox)
+        cv2.rectangle(img, (int(head_bbox[0]-head_bbox[1]*0.2), head_bbox[1]-head_bbox[3]), (int(head_bbox[0]+head_bbox[2]*1.3), int(head_bbox[1]+head_bbox[3]*0.2)),  Pose.hand_color, 5)
+
         for part_id in range(len(BODY_PARTS_PAF_IDS) - 2):
             kpt_a_id = BODY_PARTS_KPT_IDS[part_id][0]
             global_kpt_a_id = self.keypoints[kpt_a_id, 0]
-            if global_kpt_a_id != -1:
-                x_a, y_a = self.keypoints[kpt_a_id]
-                cv2.circle(img, (int(x_a), int(y_a)), 3, Pose.color, -1)
+            # if global_kpt_a_id != -1:
+            #     x_a, y_a = self.keypoints[kpt_a_id]
+            #     x_elbow, y_elbow = self.keypoints[kpt_a_id-1]
+            #     x_offset, y_offset = ((x_a-x_elbow)*0.4 , (y_a-y_elbow)*0.4)
+            #     x_a, y_a = x_a + x_offset, y_a + y_offset
+            #     #cv2.circle(img, (int(x_b), int(y_b)), 5, Pose.hand_color, -1)
+            #     box_size = x_offset if x_offset > y_offset else y_offset
+            #     cv2.rectangle(img, (int(x_a-box_size), int(y_a-box_size)), (int(x_a+box_size), int(y_a+box_size)),  Pose.color, 5)
+            #     #cv2.circle(img, (int(x_a), int(y_a)), 3, Pose.color, -1)
             kpt_b_id = BODY_PARTS_KPT_IDS[part_id][1]
             global_kpt_b_id = self.keypoints[kpt_b_id, 0]
             if global_kpt_b_id != -1:
                 x_b, y_b = self.keypoints[kpt_b_id]
-                cv2.circle(img, (int(x_b), int(y_b)), 3, Pose.color, -1)
-            if global_kpt_a_id != -1 and global_kpt_b_id != -1:
-                cv2.line(img, (int(x_a), int(y_a)), (int(x_b), int(y_b)), Pose.color, 2)
+                if kpt_b_id == 4 or kpt_b_id == 7:
+                    x_elbow, y_elbow = self.keypoints[kpt_b_id-1]
+                    x_offset, y_offset = ((x_b-x_elbow)*0.4 , (y_b-y_elbow)*0.4)
+                    x_b, y_b = x_b + x_offset, y_b + y_offset
+                    #cv2.circle(img, (int(x_b), int(y_b)), 5, Pose.hand_color, -1)
+                    box_size = abs(x_offset) if abs(x_offset) > abs(y_offset) else abs(y_offset)
+                    cv2.rectangle(img, (int(x_b-box_size), int(y_b-box_size)), (int(x_b+box_size), int(y_b+box_size)),  Pose.hand_color, 5)
+            #     else:
+            #         #cv2.circle(img, (int(x_b), int(y_b)), 5, Pose.color, -1)
+            # #if global_kpt_a_id != -1 and global_kpt_b_id != -1:
+            #     #cv2.line(img, (int(x_a), int(y_a)), (int(x_b), int(y_b)), Pose.color, 5)
 
 
 def get_similarity(a, b, threshold=0.5):
