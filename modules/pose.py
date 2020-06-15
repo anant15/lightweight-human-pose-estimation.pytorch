@@ -27,6 +27,8 @@ class Pose:
         self.bbox = Pose.get_bbox(self.keypoints)
         self.id = None
         self.filters = [[OneEuroFilter(), OneEuroFilter()] for _ in range(Pose.num_kpts)]
+        self.head_bbox = None
+        self.hands_bbox = []
 
     @staticmethod
     def get_bbox(keypoints):
@@ -53,8 +55,10 @@ class Pose:
         head_keypoints = self.keypoints.copy()
         head_keypoints[2:14, :] = -1
         head_bbox = self.get_bbox(head_keypoints)
-        print(head_bbox)
-        cv2.rectangle(img, (int(head_bbox[0]-head_bbox[1]*0.1), int(head_bbox[1]-head_bbox[3]*0.8)), (int(head_bbox[0]+head_bbox[2]*1.3), int(head_bbox[1]+head_bbox[3]*0.2)),  Pose.hand_color, 5)
+        head_bbox = [(int(head_bbox[0]-head_bbox[1]*0.1), int(head_bbox[1]-head_bbox[3])), 
+        (int(head_bbox[0]+head_bbox[2]*1.3), int(head_bbox[1]+head_bbox[3]*0.3))]
+        cv2.rectangle(img, head_bbox[0], head_bbox[1],  Pose.hand_color, 5)
+        self.head_bbox = head_bbox
 
         for part_id in range(len(BODY_PARTS_PAF_IDS) - 2):
             kpt_a_id = BODY_PARTS_KPT_IDS[part_id][0]
@@ -66,10 +70,12 @@ class Pose:
                 x_b, y_b = self.keypoints[kpt_b_id]
                 if kpt_b_id == 4 or kpt_b_id == 7:
                     x_elbow, y_elbow = self.keypoints[kpt_b_id-1]
-                    x_offset, y_offset = ((x_b-x_elbow)*0.4 , (y_b-y_elbow)*0.4)
+                    x_offset, y_offset = ((x_b-x_elbow)*0.5 , (y_b-y_elbow)*0.5)
                     x_b, y_b = x_b + x_offset, y_b + y_offset
                     box_size = abs(x_offset) if abs(x_offset) > abs(y_offset) else abs(y_offset)
-                    cv2.rectangle(img, (int(x_b-box_size), int(y_b-box_size)), (int(x_b+box_size), int(y_b+box_size)),  Pose.hand_color, 5)
+                    hand_bbox = [(int(x_b-box_size), int(y_b-box_size)), (int(x_b+box_size), int(y_b+box_size))]
+                    cv2.rectangle(img, hand_bbox[0], hand_bbox[1],  Pose.hand_color, 5)
+                    self.hands_bbox.append(hand_bbox)
 
             # ------- CODE FOR DRAWING SKELETON
             if global_kpt_a_id != -1:
